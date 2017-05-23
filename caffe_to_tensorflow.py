@@ -4,7 +4,7 @@ Assume that the network built is a equivalent (or a sub-) to the Caffe
 definition.
 """
 import tensorflow as tf
-
+import os
 from nets import caffe_scope
 from nets import nets_factory
 
@@ -18,7 +18,10 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_string(
     'num_classes', 21, 'Number of classes in the dataset.')
 tf.app.flags.DEFINE_string(
-    'caffemodel_path', None,
+    'caffemodel_path', '/media/shhs/000331470000A724/DataBase/model/ssd/caffe/SSD_300x300/VGG_VOC0712_SSD_300x300_iter_120000.caffemodel',
+    'The path to the Caffe model file to convert.')
+tf.app.flags.DEFINE_string(
+    'output_path', '/media/shhs/000331470000A724/DataBase/model/ssd/tf',
     'The path to the Caffe model file to convert.')
 
 FLAGS = tf.app.flags.FLAGS
@@ -57,7 +60,8 @@ def main(_):
 
             # Save model in checkpoint.
             saver = tf.train.Saver()
-            ckpt_path = FLAGS.caffemodel_path.replace('.caffemodel', '.ckpt')
+            ckpt_path = os.path.join(FLAGS.output_path,
+                                     FLAGS.caffemodel_path.split('/')[-1].replace('.caffemodel', '.ckpt'))
             saver.save(session, ckpt_path, write_meta_graph=False)
 
 

@@ -79,7 +79,7 @@ def _process_image(directory, name):
       width: integer, image width in pixels.
     """
     # Read the image file.
-    filename = directory + DIRECTORY_IMAGES + name + '.jpg'
+    filename = os.path.join(directory, DIRECTORY_IMAGES + name + '.jpg')
     image_data = tf.gfile.FastGFile(filename, 'r').read()
 
     # Read the XML annotation file.
@@ -181,8 +181,8 @@ def _add_to_tfrecord(dataset_dir, name, tfrecord_writer):
 
 
 def _get_output_filename(output_dir, name, idx):
-    return '%s/%s_%03d.tfrecord' % (output_dir, name, idx)
-
+    return os.path.join(output_dir, '%s_%03d.tfrecord'%(name, idx))
+    # return '%s/%s_%03d.tfrecord' % (output_dir, name, idx)
 
 def run(dataset_dir, output_dir, name='voc_train', shuffling=False):
     """Runs the conversion operation.
@@ -191,8 +191,8 @@ def run(dataset_dir, output_dir, name='voc_train', shuffling=False):
       dataset_dir: The dataset directory where the dataset is stored.
       output_dir: Output directory.
     """
-    if not tf.gfile.Exists(dataset_dir):
-        tf.gfile.MakeDirs(dataset_dir)
+    if not tf.gfile.Exists(output_dir):
+        tf.gfile.MakeDirs(output_dir)
 
     # Dataset filenames, and shuffling.
     path = os.path.join(dataset_dir, DIRECTORY_ANNOTATIONS)
