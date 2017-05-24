@@ -16,6 +16,7 @@
 on a given dataset."""
 import math
 import sys
+import os
 import six
 import time
 
@@ -88,7 +89,7 @@ tf.app.flags.DEFINE_boolean(
 tf.app.flags.DEFINE_string(
     'eval_dir', './logs/', 'Directory where the results are saved to.')
 tf.app.flags.DEFINE_string(
-    'dataset_dir', './pasvoc0712/tfrecords', 'The directory where the dataset files are stored.')
+    'dataset_dir', './pascalvoc/tfrecords', 'The directory where the dataset files are stored.')
 tf.app.flags.DEFINE_string(
     'dataset_name', 'pascalvoc_2007', 'The name of the dataset to load.')
 tf.app.flags.DEFINE_string(
@@ -96,7 +97,7 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_string(
     'model_name', 'ssd_300_vgg', 'The name of the architecture to evaluate.')
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './checkpoints/ssd_300_vgg.ckpt.data-00000-of-00001',
+    'checkpoint_path', './ssd_model/tf',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 tf.app.flags.DEFINE_integer(
@@ -140,6 +141,8 @@ def main(_):
         # =================================================================== #
         # Create a dataset provider and batches.
         # =================================================================== #
+        import ipdb; ipdb.set_trace()
+        
         with tf.device('/cpu:0'):
             with tf.name_scope(FLAGS.dataset_name + '_data_provider'):
                 provider = slim.dataset_data_provider.DatasetDataProvider(

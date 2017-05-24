@@ -18,10 +18,10 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_string(
     'num_classes', 21, 'Number of classes in the dataset.')
 tf.app.flags.DEFINE_string(
-    'caffemodel_path', '/media/shhs/000331470000A724/DataBase/model/ssd/caffe/SSD_300x300/VGG_VOC0712_SSD_300x300_iter_120000.caffemodel',
+    'caffemodel_path', './ssd_model/caffe/SSD_300x300/VGG_VOC0712_SSD_300x300_iter_120000.caffemodel',
     'The path to the Caffe model file to convert.')
 tf.app.flags.DEFINE_string(
-    'output_path', '/media/shhs/000331470000A724/DataBase/model/ssd/tf',
+    'output_path', './ssd_model/tf',
     'The path to the Caffe model file to convert.')
 
 FLAGS = tf.app.flags.FLAGS
