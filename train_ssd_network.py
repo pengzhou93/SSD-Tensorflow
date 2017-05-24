@@ -40,7 +40,7 @@ tf.app.flags.DEFINE_float(
 # General Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'train_dir', '/tmp/tfmodel/',
+    'train_dir', './model',
     'Directory where checkpoints and event logs are written to.')
 tf.app.flags.DEFINE_integer('num_clones', 1,
                             'Number of model clones to deploy.')
@@ -57,10 +57,10 @@ tf.app.flags.DEFINE_integer(
     'log_every_n_steps', 10,
     'The frequency with which logs are print.')
 tf.app.flags.DEFINE_integer(
-    'save_summaries_secs', 600,
+    'save_summaries_secs', 60,
     'The frequency with which summaries are saved, in seconds.')
 tf.app.flags.DEFINE_integer(
-    'save_interval_secs', 600,
+    'save_interval_secs', 60,
     'The frequency with which the model is saved, in seconds.')
 tf.app.flags.DEFINE_float(
     'gpu_memory_fraction', 0.8, 'GPU memory fraction to use.')
@@ -130,13 +130,13 @@ tf.app.flags.DEFINE_float(
 # Dataset Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'dataset_name', 'imagenet', 'The name of the dataset to load.')
+    'dataset_name', 'pascalvoc_2012', 'The name of the dataset to load.')
 tf.app.flags.DEFINE_integer(
     'num_classes', 21, 'Number of classes to use in the dataset.')
 tf.app.flags.DEFINE_string(
     'dataset_split_name', 'train', 'The name of the train/test split.')
 tf.app.flags.DEFINE_string(
-    'dataset_dir', None, 'The directory where the dataset files are stored.')
+    'dataset_dir', './pascalvoc/tfrecords', 'The directory where the dataset files are stored.')
 tf.app.flags.DEFINE_integer(
     'labels_offset', 0,
     'An offset for the labels in the dataset. This flag is primarily used to '
@@ -366,7 +366,7 @@ def main(_):
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction)
         config = tf.ConfigProto(log_device_placement=False,
                                 gpu_options=gpu_options)
-        saver = tf.train.Saver(max_to_keep=5,
+        saver = tf.train.Saver(max_to_keep=2,
                                keep_checkpoint_every_n_hours=1.0,
                                write_version=2,
                                pad_step_number=False)

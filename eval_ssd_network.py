@@ -97,7 +97,7 @@ tf.app.flags.DEFINE_string(
 tf.app.flags.DEFINE_string(
     'model_name', 'ssd_300_vgg', 'The name of the architecture to evaluate.')
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './ssd_model/tf',
+    'checkpoint_path', './ssd_model/tf/ssd-300-caffe/VGG_VOC0712_SSD_300x300_iter_120000.ckpt',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 tf.app.flags.DEFINE_integer(
@@ -141,7 +141,6 @@ def main(_):
         # =================================================================== #
         # Create a dataset provider and batches.
         # =================================================================== #
-        import ipdb; ipdb.set_trace()
         
         with tf.device('/cpu:0'):
             with tf.name_scope(FLAGS.dataset_name + '_data_provider'):
