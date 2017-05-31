@@ -63,7 +63,7 @@ tf.app.flags.DEFINE_integer(
     'save_interval_secs', 60,
     'The frequency with which the model is saved, in seconds.')
 tf.app.flags.DEFINE_float(
-    'gpu_memory_fraction', 0.8, 'GPU memory fraction to use.')
+    'gpu_memory_fraction', 0.7, 'GPU memory fraction to use.')
 
 # =========================================================================== #
 # Optimization Flags.
@@ -110,9 +110,9 @@ tf.app.flags.DEFINE_string(
     'exponential',
     'Specifies how the learning rate is decayed. One of "fixed", "exponential",'
     ' or "polynomial"')
-tf.app.flags.DEFINE_float('learning_rate', 0.01, 'Initial learning rate.')
+tf.app.flags.DEFINE_float('learning_rate', 0.00004, 'Initial learning rate.')
 tf.app.flags.DEFINE_float(
-    'end_learning_rate', 0.0001,
+    'end_learning_rate', 0.000001,
     'The minimal end learning rate used by a polynomial decay learning rate.')
 tf.app.flags.DEFINE_float(
     'label_smoothing', 0.0, 'The amount of label smoothing.')
@@ -148,7 +148,7 @@ tf.app.flags.DEFINE_string(
     'preprocessing_name', None, 'The name of the preprocessing to use. If left '
     'as `None`, then the model_name flag is used.')
 tf.app.flags.DEFINE_integer(
-    'batch_size', 32, 'The number of samples in each batch.')
+    'batch_size', 16, 'The number of samples in each batch.')
 tf.app.flags.DEFINE_integer(
     'train_image_size', None, 'Train image size')
 tf.app.flags.DEFINE_integer('max_number_of_steps', None,
@@ -158,7 +158,7 @@ tf.app.flags.DEFINE_integer('max_number_of_steps', None,
 # Fine-Tuning Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', None,
+    'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
     'The path to a checkpoint from which to fine-tune.')
 tf.app.flags.DEFINE_string(
     'checkpoint_model_scope', None,

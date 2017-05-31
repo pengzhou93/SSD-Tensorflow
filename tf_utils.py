@@ -193,6 +193,7 @@ def get_init_fn(flags):
     """
     if flags.checkpoint_path is None:
         return None
+
     # Warn the user if a checkpoint exists in the train_dir. Then ignore.
     if tf.train.latest_checkpoint(flags.train_dir):
         tf.logging.info(

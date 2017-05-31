@@ -351,6 +351,7 @@ def bboxes_matching_batch(labels, scores, bboxes,
        tp: (B, N)-shaped boolean Tensor containing with True Positives.
        fp: (B, N)-shaped boolean Tensor containing with False Positives.
     """
+
     # Dictionaries as inputs.
     if isinstance(scores, dict) or isinstance(bboxes, dict):
         with tf.name_scope(scope, 'bboxes_matching_batch_dict'):

@@ -273,6 +273,7 @@ def tf_ssd_bboxes_select_layer(predictions_layer, localizations_layer,
     with tf.name_scope(scope, 'ssd_bboxes_select_layer',
                        [predictions_layer, localizations_layer]):
         # Reshape features: Batches x N x N_labels | 4
+        
         p_shape = tfe.get_shape(predictions_layer)
         predictions_layer = tf.reshape(predictions_layer,
                                        tf.stack([p_shape[0], -1, p_shape[-1]]))

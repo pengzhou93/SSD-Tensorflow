@@ -1,24 +1,13 @@
-# Copyright 2016 The TensorFlow Authors. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-# http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-"""Generic evaluation script that evaluates a SSD model
-on a given dataset."""
+from notebooks.visualization import dbboxes_draw_on_img
+import cv2
+import scipy.misc
 import math
 import sys
 import os
 import six
 import time
+"""Generic evaluation script that evaluates a SSD model
+on a given dataset."""
 
 import numpy as np
 import tensorflow as tf
@@ -98,7 +87,7 @@ tf.app.flags.DEFINE_string(
     'model_name', 'ssd_300_vgg', 'The name of the architecture to evaluate.'
     '[ssd_300_vgg, ssd_512_vgg]')
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './model',
+    'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 tf.app.flags.DEFINE_integer(
@@ -115,6 +104,9 @@ def main(_):
 
     tf.logging.set_verbosity(tf.logging.INFO)
     with tf.Graph().as_default():
+        # TODO: 
+        sess = tf.InteractiveSession()
+        
         tf_global_step = slim.get_or_create_global_step()
 
         # =================================================================== #
@@ -142,7 +134,8 @@ def main(_):
         # =================================================================== #
         # Create a dataset provider and batches.
         # =================================================================== #
-        
+    
+
         with tf.device('/cpu:0'):
             with tf.name_scope(FLAGS.dataset_name + '_data_provider'):
                 provider = slim.dataset_data_provider.DatasetDataProvider(
@@ -154,28 +147,34 @@ def main(_):
             [image, shape, glabels, gbboxes] = provider.get(['image', 'shape',
                                                              'object/label',
                                                              'object/bbox'])
+    
+            # XXX:
+            threads = tf.train.start_queue_runners()
+            # [timg, tshape, tglabels, tgbboxes] = sess.run([image, shape, glabels, gbboxes])
+            # dbboxes_draw_on_img(timg, tglabels, tgbboxes)
+            # cv2.imshow('test', timg)
+            # cv2.waitKey(0)
+            # import ipdb; ipdb.set_trace()
+            
             if FLAGS.remove_difficult:
                 [gdifficults] = provider.get(['object/difficult'])
             else:
                 gdifficults = tf.zeros(tf.shape(glabels), dtype=tf.int64)
 
             # Pre-processing image, labels and bboxes.
-            image, glabels, gbboxes, gbbox_img = \
-                image_preprocessing_fn(image, glabels, gbboxes,
-                                       out_shape=ssd_shape,
-                                       data_format=DATA_FORMAT,
-                                       resize=FLAGS.eval_resize,
-                                       difficults=None)
+            with tf.name_scope('preprocessing'):
+                image, glabels, gbboxes, gbbox_img = \
+                    image_preprocessing_fn(image, glabels, gbboxes,
+                                           out_shape=ssd_shape,
+                                           data_format=DATA_FORMAT,
+                                           resize=FLAGS.eval_resize,
+                                           difficults=None)
 
-            # Encode groundtruth labels and bboxes.
-            gclasses, glocalisations, gscores = \
-                ssd_net.bboxes_encode(glabels, gbboxes, ssd_anchors)
+            with tf.name_scope('bboxes_encode'):
+                # Encode groundtruth labels and bboxes.
+                gclasses, glocalisations, gscores = \
+                    ssd_net.bboxes_encode(glabels, gbboxes, ssd_anchors, scope = 'bboxes_encode')
 
-            # if tf.gfile.IsDirectory('tmp'):
-            #     tf.gfile.DeleteRecursively('tmp')
-            # tf.summary.FileWriter('tmp', tf.get_default_graph())
-            # import ipdb; ipdb.set_trace()
-            # assert 0
 
             batch_shape = [1] * 5 + [len(ssd_anchors)] * 3
 
@@ -190,6 +189,9 @@ def main(_):
             (b_image, b_glabels, b_gbboxes, b_gdifficults, b_gbbox_img, b_gclasses,
              b_glocalisations, b_gscores) = tf_utils.reshape_list(r, batch_shape)
 
+            # XXX: 
+            threads = tf.train.start_queue_runners()
+            # import ipdb; ipdb.set_trace()
         # =================================================================== #
         # SSD Network + Ouputs decoding.
         # =================================================================== #
@@ -198,6 +200,7 @@ def main(_):
         with slim.arg_scope(arg_scope):
             predictions, localisations, logits, end_points = \
                 ssd_net.net(b_image, is_training=False)
+
         # Add losses functions.
         ssd_net.losses(logits, localisations,
                        b_gclasses, b_glocalisations, b_gscores)
@@ -213,11 +216,16 @@ def main(_):
                                         clipping_bbox=None,
                                         top_k=FLAGS.select_top_k,
                                         keep_top_k=FLAGS.keep_top_k)
+
+
             # Compute TP and FP statistics.
             num_gbboxes, tp, fp, rscores = \
                 tfe.bboxes_matching_batch(rscores.keys(), rscores, rbboxes,
                                           b_glabels, b_gbboxes, b_gdifficults,
                                           matching_threshold=FLAGS.matching_threshold)
+            # XXX:
+            # threads = tf.train.start_queue_runners()
+            # import ipdb; ipdb.set_trace()
 
         # Variables to restore: moving avg. or normal weights.
         if FLAGS.moving_average_decay:
@@ -229,6 +237,7 @@ def main(_):
         else:
             variables_to_restore = slim.get_variables_to_restore()
 
+
         # =================================================================== #
         # Evaluation metrics.
         # =================================================================== #
@@ -237,6 +246,9 @@ def main(_):
             # First add all losses.
             for loss in tf.get_collection(tf.GraphKeys.LOSSES):
                 dict_metrics[loss.op.name] = slim.metrics.streaming_mean(loss)
+
+
+
             # Extra losses as well.
             for loss in tf.get_collection('EXTRA_LOSSES'):
                 dict_metrics[loss.op.name] = slim.metrics.streaming_mean(loss)
@@ -254,6 +266,13 @@ def main(_):
             for c in tp_fp_metric[0].keys():
                 dict_metrics['tp_fp_%s' % c] = (tp_fp_metric[0][c],
                                                 tp_fp_metric[1][c])
+
+
+            if tf.gfile.IsDirectory('tmp'):
+                tf.gfile.DeleteRecursively('tmp')
+            tf.summary.FileWriter('tmp', tf.get_default_graph())
+            import ipdb; ipdb.set_trace()
+            assert 0
 
             # Add to summaries precision/recall values.
             aps_voc07 = {}
@@ -318,7 +337,6 @@ def main(_):
             if tf.gfile.IsDirectory(FLAGS.checkpoint_path):
                 checkpoint_path = tf.train.latest_checkpoint(FLAGS.checkpoint_path)
             else:
-                # import ipdb; ipdb.set_trace()
                 checkpoint_path = FLAGS.checkpoint_path
             tf.logging.info('Evaluating %s' % checkpoint_path)
 

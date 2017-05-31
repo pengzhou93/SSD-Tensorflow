@@ -93,6 +93,7 @@ def np_image_unwhitened(image, means=[_R_MEAN, _G_MEAN, _B_MEAN], to_int=True):
 def tf_summary_image(image, bboxes, name='image', unwhitened=False):
     """Add image with bounding boxes to summary.
     """
+
     if unwhitened:
         image = tf_image_unwhitened(image)
     image = tf.expand_dims(image, 0)
