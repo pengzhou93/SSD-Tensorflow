@@ -15,6 +15,8 @@
 """Generic training script that trains a SSD model using a given dataset."""
 import tensorflow as tf
 from tensorflow.python.ops import control_flow_ops
+from datetime import datetime
+import os
 
 from datasets import dataset_factory
 from deployment import model_deploy
@@ -60,7 +62,7 @@ tf.app.flags.DEFINE_integer(
     'save_summaries_secs', 60,
     'The frequency with which summaries are saved, in seconds.')
 tf.app.flags.DEFINE_integer(
-    'save_interval_secs', 60,
+    'save_interval_secs', 120,
     'The frequency with which the model is saved, in seconds.')
 tf.app.flags.DEFINE_float(
     'gpu_memory_fraction', 0.7, 'GPU memory fraction to use.')
@@ -71,7 +73,7 @@ tf.app.flags.DEFINE_float(
 tf.app.flags.DEFINE_float(
     'weight_decay', 0.00004, 'The weight decay on the model weights.')
 tf.app.flags.DEFINE_string(
-    'optimizer', 'rmsprop',
+    'optimizer', 'sgd',
     'The name of the optimizer, one of "adadelta", "adagrad", "adam",'
     '"ftrl", "momentum", "sgd" or "rmsprop".')
 tf.app.flags.DEFINE_float(
@@ -130,7 +132,7 @@ tf.app.flags.DEFINE_float(
 # Dataset Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'dataset_name', 'pascalvoc_2012', 'The name of the dataset to load.')
+    'dataset_name', 'pascalvoc_0712', 'The name of the dataset to load.')
 tf.app.flags.DEFINE_integer(
     'num_classes', 21, 'Number of classes to use in the dataset.')
 tf.app.flags.DEFINE_string(
@@ -186,6 +188,10 @@ def main(_):
         raise ValueError('You must supply the dataset directory with --dataset_dir')
 
     tf.logging.set_verbosity(tf.logging.DEBUG)
+
+    subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')    
+    FLAGS.train_dir = os.path.join(FLAGS.train_dir, subdir)
+
     with tf.Graph().as_default():
         # Config model_deploy. Keep TF Slim Models structure.
         # Useful if want to need multiple GPUs and/or servers in the future.
@@ -236,7 +242,8 @@ def main(_):
             image, glabels, gbboxes = \
                 image_preprocessing_fn(image, glabels, gbboxes,
                                        out_shape=ssd_shape,
-                                       data_format=DATA_FORMAT)
+                                       data_format=DATA_FORMAT,
+                                       subpixel = True)
             # Encode groundtruth labels and bboxes.
             gclasses, glocalisations, gscores = \
                 ssd_net.bboxes_encode(glabels, gbboxes, ssd_anchors)
@@ -367,8 +374,6 @@ def main(_):
         config = tf.ConfigProto(log_device_placement=False,
                                 gpu_options=gpu_options)
         saver = tf.train.Saver(max_to_keep=2,
-                               keep_checkpoint_every_n_hours=1.0,
-                               write_version=2,
                                pad_step_number=False)
         slim.learning.train(
             train_tensor,

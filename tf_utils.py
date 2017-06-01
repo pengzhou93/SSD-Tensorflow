@@ -195,11 +195,11 @@ def get_init_fn(flags):
         return None
 
     # Warn the user if a checkpoint exists in the train_dir. Then ignore.
-    if tf.train.latest_checkpoint(flags.train_dir):
-        tf.logging.info(
-            'Ignoring --checkpoint_path because a checkpoint already exists in %s'
-            % flags.train_dir)
-        return None
+    # if tf.train.latest_checkpoint(flags.train_dir):
+    #     tf.logging.info(
+    #         'Ignoring --checkpoint_path because a checkpoint already exists in %s'
+    #         % flags.train_dir)
+    #     return None
 
     exclusions = []
     if flags.checkpoint_exclude_scopes:
@@ -223,12 +223,11 @@ def get_init_fn(flags):
                                  flags.checkpoint_model_scope): var
              for var in variables_to_restore}
 
-
     if tf.gfile.IsDirectory(flags.checkpoint_path):
         checkpoint_path = tf.train.latest_checkpoint(flags.checkpoint_path)
     else:
         checkpoint_path = flags.checkpoint_path
-    tf.logging.info('Fine-tuning from %s. Ignoring missing vars: %s' % (checkpoint_path, flags.ignore_missing_vars))
+    tf.logging.info('\nFine-tuning from %s. \nIgnoring missing vars: %s\n' % (checkpoint_path, flags.ignore_missing_vars))
 
     return slim.assign_from_checkpoint_fn(
         checkpoint_path,

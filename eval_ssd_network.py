@@ -14,6 +14,7 @@
 # ==============================================================================
 """Generic evaluation script that evaluates a SSD model
 on a given dataset."""
+from datetime import datetime
 import math
 import sys
 import os
@@ -81,7 +82,7 @@ tf.app.flags.DEFINE_float(
     'The decay to use for the moving average.'
     'If left as None, then moving averages are not used.')
 tf.app.flags.DEFINE_float(
-    'gpu_memory_fraction', 0.1, 'GPU memory fraction to use.')
+    'gpu_memory_fraction', 0.8, 'GPU memory fraction to use.')
 tf.app.flags.DEFINE_boolean(
     'wait_for_checkpoints', False, 'Wait for new checkpoints in the eval loop.')
 
@@ -98,7 +99,7 @@ tf.app.flags.DEFINE_string(
     'model_name', 'ssd_300_vgg', 'The name of the architecture to evaluate.'
     '[ssd_300_vgg, ssd_512_vgg]')
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './model',
+    'checkpoint_path', './model/20170601-145651',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 tf.app.flags.DEFINE_integer(
@@ -114,6 +115,9 @@ def main(_):
         raise ValueError('You must supply the dataset directory with --dataset_dir')
 
     tf.logging.set_verbosity(tf.logging.INFO)
+    subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')
+    eval_path = os.path.join(FLAGS.eval_dir, subdir)
+
     with tf.Graph().as_default():
         tf_global_step = slim.get_or_create_global_step()
 
@@ -138,7 +142,7 @@ def main(_):
             preprocessing_name, is_training=False)
 
         tf_utils.print_configuration(FLAGS.__flags, ssd_params,
-                                     dataset.data_sources, FLAGS.eval_dir)
+                                     dataset.data_sources, eval_path)
         # =================================================================== #
         # Create a dataset provider and batches.
         # =================================================================== #
@@ -327,7 +331,7 @@ def main(_):
             slim.evaluation.evaluate_once(
                 master=FLAGS.master,
                 checkpoint_path=checkpoint_path,
-                logdir=FLAGS.eval_dir,
+                logdir=eval_path,
                 num_evals=num_batches,
                 eval_op=list(names_to_updates.values()),
                 variables_to_restore=variables_to_restore,
@@ -346,7 +350,7 @@ def main(_):
             slim.evaluation.evaluation_loop(
                 master=FLAGS.master,
                 checkpoint_dir=checkpoint_path,
-                logdir=FLAGS.eval_dir,
+                logdir=eval_path,
                 num_evals=num_batches,
                 eval_op=list(names_to_updates.values()),
                 variables_to_restore=variables_to_restore,
