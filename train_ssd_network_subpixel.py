@@ -26,8 +26,8 @@ import tf_utils
 
 slim = tf.contrib.slim
 
-DATA_FORMAT = 'NCHW'
-
+DATA_FORMAT = 'NHWC'
+# DATA_FORMAT = 'NCHW'
 # =========================================================================== #
 # SSD Network flags.
 # =========================================================================== #
@@ -42,8 +42,9 @@ tf.app.flags.DEFINE_float(
 # General Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'train_dir', './model',
+    'train_dir', './model/subpixel',
     'Directory where checkpoints and event logs are written to.')
+tf.app.flags.DEFINE_bool('resume', True, "Resume training from train_dir")
 tf.app.flags.DEFINE_integer('num_clones', 1,
                             'Number of model clones to deploy.')
 tf.app.flags.DEFINE_boolean('clone_on_cpu', False,
@@ -59,13 +60,13 @@ tf.app.flags.DEFINE_integer(
     'log_every_n_steps', 10,
     'The frequency with which logs are print.')
 tf.app.flags.DEFINE_integer(
-    'save_summaries_secs', 60,
+    'save_summaries_secs', 30,
     'The frequency with which summaries are saved, in seconds.')
 tf.app.flags.DEFINE_integer(
     'save_interval_secs', 120,
     'The frequency with which the model is saved, in seconds.')
 tf.app.flags.DEFINE_float(
-    'gpu_memory_fraction', 0.7, 'GPU memory fraction to use.')
+    'gpu_memory_fraction', 0.8, 'GPU memory fraction to use.')
 
 # =========================================================================== #
 # Optimization Flags.
@@ -112,7 +113,7 @@ tf.app.flags.DEFINE_string(
     'fixed',
     'Specifies how the learning rate is decayed. One of "fixed", "exponential",'
     ' or "polynomial"')
-tf.app.flags.DEFINE_float('learning_rate', 0.00004, 'Initial learning rate.')
+tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
 tf.app.flags.DEFINE_float(
     'end_learning_rate', 0.000001,
     'The minimal end learning rate used by a polynomial decay learning rate.')
@@ -145,7 +146,7 @@ tf.app.flags.DEFINE_integer(
     'evaluate the VGG and ResNet architectures which do not use a background '
     'class for the ImageNet dataset.')
 tf.app.flags.DEFINE_string(
-    'model_name', 'ssd_300_vgg', 'The name of the architecture to train.')
+    'model_name', 'ssd_300_vgg_subpixel', 'The name of the architecture to train.')
 tf.app.flags.DEFINE_string(
     'preprocessing_name', None, 'The name of the preprocessing to use. If left '
     'as `None`, then the model_name flag is used.')
@@ -156,17 +157,23 @@ tf.app.flags.DEFINE_integer(
 tf.app.flags.DEFINE_integer('max_number_of_steps', None,
                             'The maximum number of training steps.')
 
+subpixel_param = {'subpixel_r' : 2, 'desubpixel' : False}
+
 # =========================================================================== #
 # Fine-Tuning Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './model/20170601-171612',
+    'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
     'The path to a checkpoint from which to fine-tune.')
 tf.app.flags.DEFINE_string(
     'checkpoint_model_scope', None,
     'Model scope in the checkpoint. None if the same as the trained model.')
 tf.app.flags.DEFINE_string(
-    'checkpoint_exclude_scopes', None,
+    'checkpoint_exclude_scopes','',
+    # 'ssd_300_vgg/block',
+    # 'ssd_300_vgg/subpixel_conv1,ssd_300_vgg/subpixel_conv2,'
+    # 'ssd_300_vgg/subpixel_conv3,ssd_300_vgg/subpixel_conv4,'
+    # 'ssd_300_vgg/subpixel_conv5',\
     'Comma-separated list of scopes of variables to exclude when restoring '
     'from a checkpoint.')
 tf.app.flags.DEFINE_string(
@@ -189,8 +196,9 @@ def main(_):
 
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
-    subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')    
-    FLAGS.train_dir = os.path.join(FLAGS.train_dir, subdir)
+    if not FLAGS.resume:
+        subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')    
+        FLAGS.train_dir = os.path.join(FLAGS.train_dir, subdir)
 
     with tf.Graph().as_default():
         # Config model_deploy. Keep TF Slim Models structure.
@@ -238,12 +246,14 @@ def main(_):
             [image, shape, glabels, gbboxes] = provider.get(['image', 'shape',
                                                              'object/label',
                                                              'object/bbox'])
+
             # Pre-processing image, labels and bboxes.
             image, glabels, gbboxes = \
                 image_preprocessing_fn(image, glabels, gbboxes,
                                        out_shape=ssd_shape,
-                                       data_format=DATA_FORMAT)
- 
+                                       data_format=DATA_FORMAT,
+                                       subpixel = subpixel_param)
+
             # Encode groundtruth labels and bboxes.
             gclasses, glocalisations, gscores = \
                 ssd_net.bboxes_encode(glabels, gbboxes, ssd_anchors)
@@ -264,6 +274,7 @@ def main(_):
                 tf_utils.reshape_list([b_image, b_gclasses, b_glocalisations, b_gscores]),
                 capacity=2 * deploy_config.num_clones)
 
+            
         # =================================================================== #
         # Define the model running on every GPU.
         # =================================================================== #
@@ -279,7 +290,7 @@ def main(_):
                                           data_format=DATA_FORMAT)
             with slim.arg_scope(arg_scope):
                 predictions, localisations, logits, end_points = \
-                    ssd_net.net(b_image, is_training=True)
+                    ssd_net.net(b_image, is_training=True, subpixel = subpixel_param)
             # Add loss function.
             ssd_net.losses(logits, localisations,
                            b_gclasses, b_glocalisations, b_gscores,

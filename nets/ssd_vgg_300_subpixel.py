@@ -1,53 +1,4 @@
-# Copyright 2016 Paul Balanca. All Rights Reserved.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-# ==============================================================================
-"""Definition of 300 VGG-based SSD network.
-
-This model was initially introduced in:
-SSD: Single Shot MultiBox Detector
-Wei Liu, Dragomir Anguelov, Dumitru Erhan, Christian Szegedy, Scott Reed,
-Cheng-Yang Fu, Alexander C. Berg
-https://arxiv.org/abs/1512.02325
-
-Two variants of the model are defined: the 300x300 and 512x512 models, the
-latter obtaining a slightly better accuracy on Pascal VOC.
-
-Usage:
-    with slim.arg_scope(ssd_vgg.ssd_vgg()):
-        outputs, end_points = ssd_vgg.ssd_vgg(inputs)
-
-This network port of the original Caffe model. The padding in TF and Caffe
-is slightly different, and can lead to severe accuracy drop if not taken care
-in a correct way!
-
-In Caffe, the output size of convolution and pooling layers are computing as
-following: h_o = (h_i + 2 * pad_h - kernel_h) / stride_h + 1
-
-Nevertheless, there is a subtle difference between both for stride > 1. In
-the case of convolution:
-    top_size = floor((bottom_size + 2*pad - kernel_size) / stride) + 1
-whereas for pooling:
-    top_size = ceil((bottom_size + 2*pad - kernel_size) / stride) + 1
-Hence implicitely allowing some additional padding even if pad = 0. This
-behaviour explains why pooling with stride and kernel of size 2 are behaving
-the same way in TensorFlow and Caffe.
-
-Nevertheless, this is not the case anymore for other kernel sizes, hence
-motivating the use of special padding layer for controlling these side-effects.
-
-@@ssd_vgg_300
-"""
+import os
 import math
 from collections import namedtuple
 
@@ -57,6 +8,7 @@ import tensorflow as tf
 import tf_extended as tfe
 from nets import custom_layers
 from nets import ssd_common
+from nets import subpixel
 
 slim = tf.contrib.slim
 
@@ -79,7 +31,7 @@ SSDParams = namedtuple('SSDParameters', ['img_shape',
                                          ])
 
 
-class SSDNet(object):
+class SSDSubpixelNet(object):
     """Implementation of the SSD VGG-based 300 network.
 
     The default features layers with 300x300 image input are:
@@ -91,12 +43,16 @@ class SSDNet(object):
       conv11 ==> 1 x 1
     The default image size used to train this network is 300x300.
     """
+    subpixel_r = 2
     default_params = SSDParams(
         img_shape=(300, 300),
         num_classes=21,
         no_annotation_label=21,
         feat_layers=['block4', 'block7', 'block8', 'block9', 'block10', 'block11'],
-        feat_shapes=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
+        feat_shapes=[(38*subpixel_r, 38*subpixel_r), (19*subpixel_r, 19*subpixel_r),
+                     (10*subpixel_r, 10*subpixel_r), (5*subpixel_r, 5*subpixel_r),
+                     (3*subpixel_r, 3*subpixel_r), (1*subpixel_r, 1*subpixel_r)],        
+        # feat_shapes=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
         anchor_size_bounds=[0.15, 0.90],
         # anchor_size_bounds=[0.20, 0.90],
         anchor_sizes=[(21., 45.),
@@ -130,7 +86,7 @@ class SSDNet(object):
         if isinstance(params, SSDParams):
             self.params = params
         else:
-            self.params = SSDNet.default_params
+            self.params = SSDSubpixelNet.default_params
 
     # ======================================================================= #
     def net(self, inputs,
@@ -158,17 +114,18 @@ class SSDNet(object):
                                    scope=scope,
                                    **kargs)
         else:
-            r = ssd_net(inputs,
-                        num_classes=self.params.num_classes,
-                        feat_layers=self.params.feat_layers,
-                        anchor_sizes=self.params.anchor_sizes,
-                        anchor_ratios=self.params.anchor_ratios,
-                        normalizations=self.params.normalizations,
-                        is_training=is_training,
-                        dropout_keep_prob=dropout_keep_prob,
-                        prediction_fn=prediction_fn,
-                        reuse=reuse,
-                        scope=scope)
+            r = ssd_net_subpixel(inputs,
+                                 num_classes=self.params.num_classes,
+                                 feat_layers=self.params.feat_layers,
+                                 anchor_sizes=self.params.anchor_sizes,
+                                 anchor_ratios=self.params.anchor_ratios,
+                                 normalizations=self.params.normalizations,
+                                 is_training=is_training,
+                                 dropout_keep_prob=dropout_keep_prob,
+                                 prediction_fn=prediction_fn,
+                                 reuse=reuse,
+                                 scope=scope,
+                                 **kargs)
             
             # Update feature shapes (try at least!)
         if update_feat_shapes:
@@ -304,6 +261,7 @@ def ssd_feat_shapes_from_net(predictions, default_shapes=None):
       list of feature shapes. Default values if predictions shape not fully
       determined.
     """
+    
     feat_shapes = []
     for l in predictions:
         # Get the shape, from either a np array or a tensor.
@@ -344,13 +302,14 @@ def ssd_anchor_one_layer(img_shape,
       y, x, h, w: Relative x and y grids, and height and width.
     """
     # Compute the position grid: simple way.
-    # y, x = np.mgrid[0:feat_shape[0], 0:feat_shape[1]]
-    # y = (y.astype(dtype) + offset) / feat_shape[0]
-    # x = (x.astype(dtype) + offset) / feat_shape[1]
-    # Weird SSD-Caffe computation using steps values...
     y, x = np.mgrid[0:feat_shape[0], 0:feat_shape[1]]
-    y = (y.astype(dtype) + offset) * step / img_shape[0]
-    x = (x.astype(dtype) + offset) * step / img_shape[1]
+    y = (y.astype(dtype) + offset) / feat_shape[0]
+    x = (x.astype(dtype) + offset) / feat_shape[1]
+
+    # Weird SSD-Caffe computation using steps values...
+    # y, x = np.mgrid[0:feat_shape[0], 0:feat_shape[1]]
+    # y = (y.astype(dtype) + offset) * step / img_shape[0]
+    # x = (x.astype(dtype) + offset) * step / img_shape[1]
 
     # Expand dims to support easy broadcasting.
     y = np.expand_dims(y, axis=-1)
@@ -446,23 +405,25 @@ def ssd_multibox_layer(inputs,
     return cls_pred, loc_pred
 
 
-def ssd_net(inputs,
-            num_classes=SSDNet.default_params.num_classes,
-            feat_layers=SSDNet.default_params.feat_layers,
-            anchor_sizes=SSDNet.default_params.anchor_sizes,
-            anchor_ratios=SSDNet.default_params.anchor_ratios,
-            normalizations=SSDNet.default_params.normalizations,
-            is_training=True,
-            dropout_keep_prob=0.5,
-            prediction_fn=slim.softmax,
-            reuse=None,
-            scope='ssd_300_vgg'):
+def ssd_net_subpixel(inputs,
+                     num_classes=SSDSubpixelNet.default_params.num_classes,
+                     feat_layers=SSDSubpixelNet.default_params.feat_layers,
+                     anchor_sizes=SSDSubpixelNet.default_params.anchor_sizes,
+                     anchor_ratios=SSDSubpixelNet.default_params.anchor_ratios,
+                     normalizations=SSDSubpixelNet.default_params.normalizations,
+                     is_training=True,
+                     dropout_keep_prob=0.5,
+                     prediction_fn=slim.softmax,
+                     reuse=None,
+                     scope='ssd_300_vgg',
+                     **kargs):
     """SSD net definition.
     """
     # if data_format == 'NCHW':
     #     inputs = tf.transpose(inputs, perm=(0, 3, 1, 2))
 
     # End_points collect relevant activations for external use.
+    subpixel_r = kargs['subpixel']['subpixel_r']
     end_points = {}
     with tf.variable_scope(scope, 'ssd_300_vgg', [inputs], reuse=reuse):
         # Original VGG-16 blocks.
@@ -478,8 +439,12 @@ def ssd_net(inputs,
         end_points['block3'] = net
         net = slim.max_pool2d(net, [2, 2], scope='pool3')
         # Block 4.
-        net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
-        end_points['block4'] = net
+        net_conv4 = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
+        # subpixel
+        net_subpixel_4 = subpixel.PS(net_conv4, subpixel_r, color = True,
+                                     num_or_size_splits = 512/(subpixel_r**2))
+        end_points['block4'] = net_subpixel_4
+        net = net_conv4
         net = slim.max_pool2d(net, [2, 2], scope='pool4')
         # Block 5.
         net = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv5')
@@ -492,8 +457,12 @@ def ssd_net(inputs,
         end_points['block6'] = net
         net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
         # Block 7: 1x1 conv. Because the fuck.
-        net = slim.conv2d(net, 1024, [1, 1], scope='conv7')
-        end_points['block7'] = net
+        net_conv7 = slim.conv2d(net, 1024, [1, 1], scope='conv7')
+        # subpixel
+        net_subpixel_7 = subpixel.PS(net_conv7, subpixel_r, color = True,
+                          num_or_size_splits = 1024/(subpixel_r**2)) 
+        end_points['block7'] = net_subpixel_7
+        net = net_conv7
         net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
 
         # Block 8/9/10/11: 1x1 and 3x3 convolutions stride 2 (except lasts).
@@ -501,24 +470,39 @@ def ssd_net(inputs,
         with tf.variable_scope(end_point):
             net = slim.conv2d(net, 256, [1, 1], scope='conv1x1')
             net = custom_layers.pad2d(net, pad=(1, 1))
-            net = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
-        end_points[end_point] = net
+            net_block8 = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+        # subpixel
+        net_subpixel_8 = subpixel.PS(net_block8, subpixel_r, color = True,
+                          num_or_size_splits = 512/(subpixel_r**2)) 
+        end_points[end_point] = net_subpixel_8
         end_point = 'block9'
         with tf.variable_scope(end_point):
+            net = net_block8
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
             net = custom_layers.pad2d(net, pad=(1, 1))
-            net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
-        end_points[end_point] = net
+            net_block9 = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
+        # subpixel
+        net_subpixel_9 = subpixel.PS(net_block9, subpixel_r, color = True,
+                                     num_or_size_splits = 256/(subpixel_r**2)) 
+        end_points[end_point] = net_subpixel_9
         end_point = 'block10'
         with tf.variable_scope(end_point):
+            net = net_block9
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
-            net = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
-        end_points[end_point] = net
+            net_block10 = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
+        # subpixel
+        net_subpixel_10 = subpixel.PS(net_block10, subpixel_r, color = True,
+                                      num_or_size_splits = 256/(subpixel_r**2)) 
+        end_points[end_point] = net_subpixel_10
         end_point = 'block11'
         with tf.variable_scope(end_point):
+            net = net_block10
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
-            net = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
-        end_points[end_point] = net
+            net_block11 = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
+        # subpixel
+        net_subpixel_11 = subpixel.PS(net_block11, subpixel_r, color = True,
+                                      num_or_size_splits = 256/(subpixel_r**2)) 
+        end_points[end_point] = net_subpixel_11
 
         # Prediction and localisations layers.
         predictions = []
@@ -536,14 +520,14 @@ def ssd_net(inputs,
             localisations.append(l)
 
         return predictions, localisations, logits, end_points
-ssd_net.default_image_size = 300
+# ssd_net.default_image_size = 300
 
 def ssd_net_desubpixel(inputs,
-                       num_classes=SSDNet.default_params.num_classes,
-                       feat_layers=SSDNet.default_params.feat_layers,
-                       anchor_sizes=SSDNet.default_params.anchor_sizes,
-                       anchor_ratios=SSDNet.default_params.anchor_ratios,
-                       normalizations=SSDNet.default_params.normalizations,
+                       num_classes=SSDSubpixelNet.default_params.num_classes,
+                       feat_layers=SSDSubpixelNet.default_params.feat_layers,
+                       anchor_sizes=SSDSubpixelNet.default_params.anchor_sizes,
+                       anchor_ratios=SSDSubpixelNet.default_params.anchor_ratios,
+                       normalizations=SSDSubpixelNet.default_params.normalizations,
                        is_training=True,
                        dropout_keep_prob=0.5,
                        prediction_fn=slim.softmax,

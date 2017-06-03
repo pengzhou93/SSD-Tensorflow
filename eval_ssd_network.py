@@ -99,7 +99,7 @@ tf.app.flags.DEFINE_string(
     'model_name', 'ssd_300_vgg', 'The name of the architecture to evaluate.'
     '[ssd_300_vgg, ssd_512_vgg]')
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './model/20170601-145651',
+    'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 tf.app.flags.DEFINE_integer(
@@ -169,7 +169,7 @@ def main(_):
                                        out_shape=ssd_shape,
                                        data_format=DATA_FORMAT,
                                        resize=FLAGS.eval_resize,
-                                       difficults=None)
+                                       difficults=gdifficults)
 
             # Encode groundtruth labels and bboxes.
             gclasses, glocalisations, gscores = \
