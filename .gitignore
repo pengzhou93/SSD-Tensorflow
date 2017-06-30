@@ -1,3 +1,6 @@
+demo/*.jpg
+*.pyc
+
 *#
 tmp/
 demo/frames/demo.gif

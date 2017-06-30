@@ -36,13 +36,15 @@ tf.app.flags.DEFINE_float(
 tf.app.flags.DEFINE_float(
     'negative_ratio', 3., 'Negative ratio in the loss function.')
 tf.app.flags.DEFINE_float(
-    'match_threshold', 0.5, 'Matching threshold in the loss function.')
+    'match_threshold', 0.7, 'IoU matching threshold in the loss function.') # 0.5
+tf.app.flags.DEFINE_float(
+    'neg_match_threshold', 0.5, 'Negative sample matching threshold in the loss function.') # 0.5
 
 # =========================================================================== #
 # General Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'train_dir', './model/subpixel',
+    'train_dir', './model/deconvolution',
     'Directory where checkpoints and event logs are written to.')
 tf.app.flags.DEFINE_bool('resume', True, "Resume training from train_dir")
 tf.app.flags.DEFINE_integer('num_clones', 1,
@@ -113,7 +115,7 @@ tf.app.flags.DEFINE_string(
     'fixed',
     'Specifies how the learning rate is decayed. One of "fixed", "exponential",'
     ' or "polynomial"')
-tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
+tf.app.flags.DEFINE_float('learning_rate', 0.005, 'Initial learning rate.')
 tf.app.flags.DEFINE_float(
     'end_learning_rate', 0.000001,
     'The minimal end learning rate used by a polynomial decay learning rate.')
@@ -163,14 +165,16 @@ subpixel_param = {'subpixel_r' : 2, 'desubpixel' : False}
 # Fine-Tuning Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
+    # 'checkpoint_path', './model/subpixel',
     'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
     'The path to a checkpoint from which to fine-tune.')
 tf.app.flags.DEFINE_string(
     'checkpoint_model_scope', None,
     'Model scope in the checkpoint. None if the same as the trained model.')
 tf.app.flags.DEFINE_string(
-    'checkpoint_exclude_scopes','',
-    # 'ssd_300_vgg/block',
+    'checkpoint_exclude_scopes',
+    # '',
+    'ssd_300_vgg/block,ssd_300_vgg/transpose',
     # 'ssd_300_vgg/subpixel_conv1,ssd_300_vgg/subpixel_conv2,'
     # 'ssd_300_vgg/subpixel_conv3,ssd_300_vgg/subpixel_conv4,'
     # 'ssd_300_vgg/subpixel_conv5',\
@@ -297,7 +301,8 @@ def main(_):
                            match_threshold=FLAGS.match_threshold,
                            negative_ratio=FLAGS.negative_ratio,
                            alpha=FLAGS.loss_alpha,
-                           label_smoothing=FLAGS.label_smoothing)
+                           label_smoothing=FLAGS.label_smoothing,
+                           neg_match_threshold = FLAGS.neg_match_threshold)
             return end_points
 
         # Gather initial summaries.
@@ -384,8 +389,14 @@ def main(_):
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction)
         config = tf.ConfigProto(log_device_placement=False,
                                 gpu_options=gpu_options)
+
+        variables_to_restore = slim.get_variables_to_restore()
         saver = tf.train.Saver(max_to_keep=2,
+                               var_list = variables_to_restore,
                                pad_step_number=False)
+
+        # saver = tf.train.Saver(max_to_keep=2,
+        #                        pad_step_number=False)
         slim.learning.train(
             train_tensor,
             logdir=FLAGS.train_dir,

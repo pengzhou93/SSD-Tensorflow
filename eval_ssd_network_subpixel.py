@@ -45,13 +45,13 @@ DATA_FORMAT = 'NHWC'
 # SSD evaluation Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_float(
-    'select_threshold', 0.01, 'Selection threshold.')
+    'select_threshold', 0.5, 'Selection threshold.')
 tf.app.flags.DEFINE_integer(
     'select_top_k', 400, 'Select top-k detected bounding boxes.')
 tf.app.flags.DEFINE_integer(
     'keep_top_k', 200, 'Keep top-k detected objects.')
 tf.app.flags.DEFINE_float(
-    'nms_threshold', 0.45, 'Non-Maximum Selection threshold.')
+    'nms_threshold', 0.1, 'Non-Maximum Selection threshold.')
 tf.app.flags.DEFINE_float(
     'matching_threshold', 0.5, 'Matching threshold with groundtruth objects.')
 tf.app.flags.DEFINE_integer(
@@ -99,7 +99,7 @@ tf.app.flags.DEFINE_string(
     'model_name', 'ssd_300_vgg_subpixel', 'The name of the architecture to evaluate.'
     '[ssd_300_vgg, ssd_512_vgg, ssd_300_vgg_subpixel]')
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './model/subpixel',
+    'checkpoint_path', './model/deconvolution',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 tf.app.flags.DEFINE_integer(

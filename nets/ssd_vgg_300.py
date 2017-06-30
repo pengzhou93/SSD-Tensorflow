@@ -99,18 +99,18 @@ class SSDNet(object):
         feat_shapes=[(38, 38), (19, 19), (10, 10), (5, 5), (3, 3), (1, 1)],
         anchor_size_bounds=[0.15, 0.90],
         # anchor_size_bounds=[0.20, 0.90],
-        anchor_sizes=[(21., 45.),
-                      (45., 99.),
-                      (99., 153.),
-                      (153., 207.),
-                      (207., 261.),
-                      (261., 315.)],
-        # anchor_sizes=[(30., 60.),
-        #               (60., 111.),
-        #               (111., 162.),
-        #               (162., 213.),
-        #               (213., 264.),
-        #               (264., 315.)],
+        # anchor_sizes=[(21., 45.),
+        #               (45., 99.),
+        #               (99., 153.),
+        #               (153., 207.),
+        #               (207., 261.),
+        #               (261., 315.)],
+        anchor_sizes=[(30., 60.),
+                      (60., 111.),
+                      (111., 162.),
+                      (162., 213.),
+                      (213., 264.),
+                      (264., 315.)],
         anchor_ratios=[[2, .5],
                        [2, .5, 3, 1./3],
                        [2, .5, 3, 1./3],
@@ -488,32 +488,37 @@ def ssd_net(inputs,
 
         # Additional SSD blocks.
         # Block 6: let's dilate the hell out of it!
-        net = slim.conv2d(net, 1024, [3, 3], rate=6, scope='conv6')
+        # dilated convolution
+        net = slim.conv2d(net, 1024, [3, 3], rate=6, scope='fc6')
         end_points['block6'] = net
-        net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
+        # net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
         # Block 7: 1x1 conv. Because the fuck.
-        net = slim.conv2d(net, 1024, [1, 1], scope='conv7')
+        net = slim.conv2d(net, 1024, [1, 1], scope='fc7')
         end_points['block7'] = net
-        net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
+        # net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
 
         # Block 8/9/10/11: 1x1 and 3x3 convolutions stride 2 (except lasts).
+        # conv6
         end_point = 'block8'
         with tf.variable_scope(end_point):
             net = slim.conv2d(net, 256, [1, 1], scope='conv1x1')
             net = custom_layers.pad2d(net, pad=(1, 1))
             net = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
         end_points[end_point] = net
+        # conv7
         end_point = 'block9'
         with tf.variable_scope(end_point):
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
             net = custom_layers.pad2d(net, pad=(1, 1))
             net = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
         end_points[end_point] = net
+        # conv8
         end_point = 'block10'
         with tf.variable_scope(end_point):
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
             net = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
         end_points[end_point] = net
+        # conv9
         end_point = 'block11'
         with tf.variable_scope(end_point):
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
@@ -762,18 +767,20 @@ def ssd_losses(logits, localisations,
         # Final negative mask.
         nmask = tf.logical_and(nmask, nvalues < max_hard_pred)
         fnmask = tf.cast(nmask, dtype)
-
+        
+        fn_positives = tf.cast(n_positives, tf.float32)
+        fn_neg = tf.cast(n_neg, tf.float32)
         # Add cross-entropy loss.
         with tf.name_scope('cross_entropy_pos'):
             loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                                   labels=gclasses)
-            loss = tf.div(tf.reduce_sum(loss * fpmask), batch_size, name='value')
+            loss = tf.div(tf.reduce_sum(loss * fpmask), fn_positives, name='value')
             tf.losses.add_loss(loss)
 
         with tf.name_scope('cross_entropy_neg'):
             loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                                   labels=no_classes)
-            loss = tf.div(tf.reduce_sum(loss * fnmask), batch_size, name='value')
+            loss = tf.div(tf.reduce_sum(loss * fnmask), fn_neg, name='value')
             tf.losses.add_loss(loss)
 
         # Add localization loss: smooth L1, L2, ...
@@ -781,7 +788,7 @@ def ssd_losses(logits, localisations,
             # Weights Tensor: positive mask + random negative.
             weights = tf.expand_dims(alpha * fpmask, axis=-1)
             loss = custom_layers.abs_smooth(localisations - glocalisations)
-            loss = tf.div(tf.reduce_sum(loss * weights), batch_size, name='value')
+            loss = tf.div(tf.reduce_sum(loss * weights), fn_positives, name='value')
             tf.losses.add_loss(loss)
 
 

@@ -113,7 +113,7 @@ tf.app.flags.DEFINE_string(
     'fixed',
     'Specifies how the learning rate is decayed. One of "fixed", "exponential",'
     ' or "polynomial"')
-tf.app.flags.DEFINE_float('learning_rate', 0.0001, 'Initial learning rate.')
+tf.app.flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
 tf.app.flags.DEFINE_float(
     'end_learning_rate', 0.000001,
     'The minimal end learning rate used by a polynomial decay learning rate.')
@@ -383,8 +383,13 @@ def main(_):
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction)
         config = tf.ConfigProto(log_device_placement=False,
                                 gpu_options=gpu_options)
+        variables_to_restore = slim.get_variables_to_restore()
         saver = tf.train.Saver(max_to_keep=2,
+                               var_list = variables_to_restore,
                                pad_step_number=False)
+
+        # saver = tf.train.Saver(max_to_keep=2,
+        #                        pad_step_number=False)
         slim.learning.train(
             train_tensor,
             logdir=FLAGS.train_dir,

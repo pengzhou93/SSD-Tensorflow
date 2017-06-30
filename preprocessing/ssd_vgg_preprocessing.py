@@ -315,11 +315,12 @@ def preprocess_for_train_subpixel(image, labels, bboxes,
         #                                                     bboxes)
 
         # Distort image and bounding boxes.
-        dst_image, labels, bboxes, distort_bbox = \
-            distorted_bounding_box_crop(image, labels, bboxes,
-                                        min_object_covered=MIN_OBJECT_COVERED,
-                                        aspect_ratio_range=CROP_RATIO_RANGE)
+        # dst_image, labels, bboxes, distort_bbox = \
+        #     distorted_bounding_box_crop(image, labels, bboxes,
+        #                                 min_object_covered=MIN_OBJECT_COVERED,
+        #                                 aspect_ratio_range=CROP_RATIO_RANGE)
         # Resize image to output size.
+        dst_image = image
         dst_image = tf_image.resize_image(dst_image, out_shape,
                                           method=tf.image.ResizeMethod.BILINEAR,
                                           align_corners=False)
@@ -405,8 +406,10 @@ def preprocess_for_eval_subpixel(image, labels, bboxes,
 
 
 def preprocess_for_eval(image, labels, bboxes,
-                        out_shape=EVAL_SIZE, data_format='NHWC',
-                        difficults=None, resize=Resize.WARP_RESIZE,
+                        out_shape=EVAL_SIZE,
+                        resize =Resize.CENTRAL_CROP,
+                        data_format='NHWC',
+                        difficults=None, 
                         scope='ssd_preprocessing_train'):
     """Preprocess an image for evaluation.
 
@@ -577,6 +580,7 @@ def preprocess_image(image,
                      labels,
                      bboxes,
                      out_shape,
+                     resize,
                      data_format,
                      is_training=False,
                      **kwargs):
@@ -634,6 +638,7 @@ def preprocess_image(image,
         else:
             return preprocess_for_eval(image, labels, bboxes,
                                        out_shape=out_shape,
+                                       resize = resize,
                                        data_format=data_format,
                                        **kwargs)
             

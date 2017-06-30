@@ -179,6 +179,7 @@ def bboxes_nms(scores, bboxes, nms_threshold=0.5, keep_top_k=200, scope=None):
     """
     with tf.name_scope(scope, 'bboxes_nms_single', [scores, bboxes]):
         # Apply NMS algorithm.
+        
         idxes = tf.image.non_max_suppression(bboxes, scores,
                                              keep_top_k, nms_threshold)
         scores = tf.gather(scores, idxes)
@@ -206,6 +207,7 @@ def bboxes_nms_batch(scores, bboxes, nms_threshold=0.5, keep_top_k=200,
         Padded with zero if necessary.
     """
     # Dictionaries as inputs.
+    
     if isinstance(scores, dict) or isinstance(bboxes, dict):
         with tf.name_scope(scope, 'bboxes_nms_batch_dict'):
             d_scores = {}

@@ -179,6 +179,7 @@ def tf_ssd_bboxes_encode(labels,
       (target_labels, target_localizations, target_scores):
         Each element is a list of target Tensors.
     """
+    
     with tf.name_scope(scope):
         target_labels = []
         target_localizations = []

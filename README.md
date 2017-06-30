@@ -17,6 +17,7 @@ Here are two examples of successful detection outputs:
 ![](pictures/ex1.png "SSD anchors")
 ![](pictures/ex2.png "SSD anchors")
 
+
 To run the notebook you first have to unzip the checkpoint files in ./checkpoint
 ```bash
 unzip ssd_300_vgg.ckpt.zip

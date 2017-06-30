@@ -229,6 +229,7 @@ def bboxes_intersection(bboxes_ref, bboxes2):
 def bboxes_nms(classes, scores, bboxes, nms_threshold=0.45):
     """Apply non-maximum selection to bounding boxes.
     """
+
     keep_bboxes = np.ones(scores.shape, dtype=np.bool)
     for i in range(scores.size-1):
         if keep_bboxes[i]:

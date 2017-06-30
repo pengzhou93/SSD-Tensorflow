@@ -210,7 +210,8 @@ class SSDSubpixelNet(object):
                negative_ratio=3.,
                alpha=1.,
                label_smoothing=0.,
-               scope='ssd_losses'):
+               scope='ssd_losses',
+               neg_match_threshold = 0.5):
         """Define the SSD network losses.
         """
         return ssd_losses(logits, localisations,
@@ -219,7 +220,8 @@ class SSDSubpixelNet(object):
                           negative_ratio=negative_ratio,
                           alpha=alpha,
                           label_smoothing=label_smoothing,
-                          scope=scope)
+                          scope=scope,
+                          neg_match_threshold = neg_match_threshold)
 
 
 # =========================================================================== #
@@ -441,9 +443,12 @@ def ssd_net_subpixel(inputs,
         # Block 4.
         net_conv4 = slim.repeat(net, 3, slim.conv2d, 512, [3, 3], scope='conv4')
         # subpixel
-        net_subpixel_4 = subpixel.PS(net_conv4, subpixel_r, color = True,
-                                     num_or_size_splits = 512/(subpixel_r**2))
-        end_points['block4'] = net_subpixel_4
+        # net_subpixel_4 = subpixel.PS(net_conv4, subpixel_r, color = True,
+        #                              num_or_size_splits = 512/(subpixel_r**2))
+        # end_points['block4'] = net_subpixel_4
+        end_points['block4'] = slim.conv2d_transpose(net_conv4, 512, (3, 3), stride = 2,
+                                                     scope = 'transpose4')
+        
         net = net_conv4
         net = slim.max_pool2d(net, [2, 2], scope='pool4')
         # Block 5.
@@ -459,9 +464,12 @@ def ssd_net_subpixel(inputs,
         # Block 7: 1x1 conv. Because the fuck.
         net_conv7 = slim.conv2d(net, 1024, [1, 1], scope='conv7')
         # subpixel
-        net_subpixel_7 = subpixel.PS(net_conv7, subpixel_r, color = True,
-                          num_or_size_splits = 1024/(subpixel_r**2)) 
-        end_points['block7'] = net_subpixel_7
+        # net_subpixel_7 = subpixel.PS(net_conv7, subpixel_r, color = True,
+        #                   num_or_size_splits = 1024/(subpixel_r**2)) 
+        # end_points['block7'] = net_subpixel_7
+        end_points['block7'] = slim.conv2d_transpose(net_conv7, 1024, (3, 3), stride = 2,
+                                                     scope = 'transpose7')
+
         net = net_conv7
         net = tf.layers.dropout(net, rate=dropout_keep_prob, training=is_training)
 
@@ -472,9 +480,12 @@ def ssd_net_subpixel(inputs,
             net = custom_layers.pad2d(net, pad=(1, 1))
             net_block8 = slim.conv2d(net, 512, [3, 3], stride=2, scope='conv3x3', padding='VALID')
         # subpixel
-        net_subpixel_8 = subpixel.PS(net_block8, subpixel_r, color = True,
-                          num_or_size_splits = 512/(subpixel_r**2)) 
-        end_points[end_point] = net_subpixel_8
+        # net_subpixel_8 = subpixel.PS(net_block8, subpixel_r, color = True,
+        #                   num_or_size_splits = 512/(subpixel_r**2)) 
+        # end_points[end_point] = net_subpixel_8
+        end_points['block8'] = slim.conv2d_transpose(net_block8, 512, (3, 3), stride = 2,
+                                                     scope = 'transpose8')
+        
         end_point = 'block9'
         with tf.variable_scope(end_point):
             net = net_block8
@@ -482,27 +493,35 @@ def ssd_net_subpixel(inputs,
             net = custom_layers.pad2d(net, pad=(1, 1))
             net_block9 = slim.conv2d(net, 256, [3, 3], stride=2, scope='conv3x3', padding='VALID')
         # subpixel
-        net_subpixel_9 = subpixel.PS(net_block9, subpixel_r, color = True,
-                                     num_or_size_splits = 256/(subpixel_r**2)) 
-        end_points[end_point] = net_subpixel_9
+        # net_subpixel_9 = subpixel.PS(net_block9, subpixel_r, color = True,
+        #                              num_or_size_splits = 256/(subpixel_r**2)) 
+        # end_points[end_point] = net_subpixel_9
+        end_points['block9'] = slim.conv2d_transpose(net_block9, 256, (3, 3), stride = 2,
+                                                     scope = 'transpose9')
+
         end_point = 'block10'
         with tf.variable_scope(end_point):
             net = net_block9
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
             net_block10 = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
         # subpixel
-        net_subpixel_10 = subpixel.PS(net_block10, subpixel_r, color = True,
-                                      num_or_size_splits = 256/(subpixel_r**2)) 
-        end_points[end_point] = net_subpixel_10
+        # net_subpixel_10 = subpixel.PS(net_block10, subpixel_r, color = True,
+        #                               num_or_size_splits = 256/(subpixel_r**2)) 
+        # end_points[end_point] = net_subpixel_10
+        end_points['block10'] = slim.conv2d_transpose(net_block10, 256, (3, 3), stride = 2,
+                                                      scope = 'transpose10')
+
         end_point = 'block11'
         with tf.variable_scope(end_point):
             net = net_block10
             net = slim.conv2d(net, 128, [1, 1], scope='conv1x1')
             net_block11 = slim.conv2d(net, 256, [3, 3], scope='conv3x3', padding='VALID')
         # subpixel
-        net_subpixel_11 = subpixel.PS(net_block11, subpixel_r, color = True,
-                                      num_or_size_splits = 256/(subpixel_r**2)) 
-        end_points[end_point] = net_subpixel_11
+        # net_subpixel_11 = subpixel.PS(net_block11, subpixel_r, color = True,
+        #                               num_or_size_splits = 256/(subpixel_r**2)) 
+        # end_points[end_point] = net_subpixel_11
+        end_points['block11'] = slim.conv2d_transpose(net_block11, 256, (3, 3), stride = 2,
+                                                      scope = 'transpose11')
 
         # Prediction and localisations layers.
         predictions = []
@@ -695,7 +714,8 @@ def ssd_losses(logits, localisations,
                alpha=1.,
                label_smoothing=0.,
                device='/cpu:0',
-               scope=None):
+               scope=None,
+               neg_match_threshold = 0.5):
     with tf.name_scope(scope, 'ssd_losses'):
         lshape = tfe.get_shape(logits[0], 5)
         num_classes = lshape[-1]
@@ -707,6 +727,7 @@ def ssd_losses(logits, localisations,
         fgscores = []
         flocalisations = []
         fglocalisations = []
+        
         for i in range(len(logits)):
             flogits.append(tf.reshape(logits[i], [-1, num_classes]))
             fgclasses.append(tf.reshape(gclasses[i], [-1]))
@@ -726,38 +747,62 @@ def ssd_losses(logits, localisations,
         fpmask = tf.cast(pmask, dtype)
         n_positives = tf.reduce_sum(fpmask)
 
+        # import ipdb; ipdb.set_trace()
+        # sess = tf.InteractiveSession()
+        # threads = tf.train.start_queue_runners()
+        # tmask = pmask.eval()
+        # tidx = np.where(tmask)[0]
+
         # Hard negative mining...
         no_classes = tf.cast(pmask, tf.int32)
         predictions = slim.softmax(logits)
         nmask = tf.logical_and(tf.logical_not(pmask),
                                gscores > -0.5)
+
+
         fnmask = tf.cast(nmask, dtype)
         nvalues = tf.where(nmask,
                            predictions[:, 0],
                            1. - fnmask)
-        nvalues_flat = tf.reshape(nvalues, [-1])
+        # nvalues_flat = tf.reshape(nvalues, [-1])
+
         # Number of negative entries to select.
         max_neg_entries = tf.cast(tf.reduce_sum(fnmask), tf.int32)
         n_neg = tf.cast(negative_ratio * n_positives, tf.int32) + batch_size
         n_neg = tf.minimum(n_neg, max_neg_entries)
 
-        val, idxes = tf.nn.top_k(-nvalues_flat, k=n_neg)
-        max_hard_pred = -val[-1]
-        # Final negative mask.
-        nmask = tf.logical_and(nmask, nvalues < max_hard_pred)
+
+        # XXX:sample from less than neg_match_threshold
+        tf.logging.info('\tneg_match_threshold[%f]'%neg_match_threshold)
+        nmask = tf.logical_and(nmask, nvalues < neg_match_threshold)
+        nvalues = tf.where(nmask, nvalues, tf.cast(nmask, dtype))
+        val, idxes = tf.nn.top_k(nvalues, k = n_neg)
+        min_hard_pred = val[-1]
+        nmask = tf.logical_and(nmask, nvalues > min_hard_pred)
+        
+        # XXX: from the least sample to sample n_net negative samples
+        # val, idxes = tf.nn.top_k(-nvalues_flat, k=n_neg)
+        # max_hard_pred = -val[-1]
+        # # Final negative mask.
+        # nmask = tf.logical_and(nmask, nvalues < max_hard_pred)
+
         fnmask = tf.cast(nmask, dtype)
 
+        fn_positives = tf.cast(n_positives, tf.float32)
+        fn_neg = tf.cast(n_neg, tf.float32)
         # Add cross-entropy loss.
         with tf.name_scope('cross_entropy_pos'):
             loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                                   labels=gclasses)
-            loss = tf.div(tf.reduce_sum(loss * fpmask), batch_size, name='value')
+            loss = tf.div(tf.reduce_sum(loss * fpmask), fn_positives, name='value')
+            # loss = tf.div(tf.reduce_sum(loss * fpmask), batch_size, name='value')
             tf.losses.add_loss(loss)
 
         with tf.name_scope('cross_entropy_neg'):
             loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                                   labels=no_classes)
-            loss = tf.div(tf.reduce_sum(loss * fnmask), batch_size, name='value')
+            loss = tf.div(tf.reduce_sum(loss * fnmask), fn_neg, name='value')
+            # loss = tf.div(tf.reduce_sum(loss * fnmask), batch_size, name='value')
             tf.losses.add_loss(loss)
 
         # Add localization loss: smooth L1, L2, ...
@@ -765,7 +810,8 @@ def ssd_losses(logits, localisations,
             # Weights Tensor: positive mask + random negative.
             weights = tf.expand_dims(alpha * fpmask, axis=-1)
             loss = custom_layers.abs_smooth(localisations - glocalisations)
-            loss = tf.div(tf.reduce_sum(loss * weights), batch_size, name='value')
+            loss = tf.div(tf.reduce_sum(loss * weights), fn_positives, name='value')
+            # loss = tf.div(tf.reduce_sum(loss * weights), batch_size, name='value')
             tf.losses.add_loss(loss)
 
 

@@ -45,13 +45,13 @@ DATA_FORMAT = 'NHWC'
 # SSD evaluation Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_float(
-    'select_threshold', 0.01, 'Selection threshold.')
+    'select_threshold', 0.00999999977648, 'Selection threshold.')
 tf.app.flags.DEFINE_integer(
     'select_top_k', 400, 'Select top-k detected bounding boxes.')
 tf.app.flags.DEFINE_integer(
     'keep_top_k', 200, 'Keep top-k detected objects.')
 tf.app.flags.DEFINE_float(
-    'nms_threshold', 0.45, 'Non-Maximum Selection threshold.')
+    'nms_threshold', 0.449999988079, 'Non-Maximum Selection threshold.')
 tf.app.flags.DEFINE_float(
     'matching_threshold', 0.5, 'Matching threshold with groundtruth objects.')
 tf.app.flags.DEFINE_integer(
@@ -99,7 +99,8 @@ tf.app.flags.DEFINE_string(
     'model_name', 'ssd_300_vgg', 'The name of the architecture to evaluate.'
     '[ssd_300_vgg, ssd_512_vgg]')
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
+    'checkpoint_path', './model/ssd/20170630-101121',
+    # 'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
     'The directory where the model was written to or an absolute path to a '
     'checkpoint file.')
 tf.app.flags.DEFINE_integer(

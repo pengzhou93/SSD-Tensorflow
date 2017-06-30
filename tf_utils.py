@@ -101,6 +101,7 @@ def configure_learning_rate(flags, num_samples_per_epoch, global_step):
     decay_steps = int(num_samples_per_epoch / flags.batch_size *
                       flags.num_epochs_per_decay)
 
+    tf.logging.info('\tInit learning rate[%f]'%flags.learning_rate)
     if flags.learning_rate_decay_type == 'exponential':
         return tf.train.exponential_decay(flags.learning_rate,
                                           global_step,
@@ -109,7 +110,9 @@ def configure_learning_rate(flags, num_samples_per_epoch, global_step):
                                           staircase=True,
                                           name='exponential_decay_learning_rate')
     elif flags.learning_rate_decay_type == 'fixed':
-        return tf.constant(flags.learning_rate, name='fixed_learning_rate')
+        learning_rate_tmp = tf.constant(flags.learning_rate, name='fixed_learning_rate')
+        return learning_rate_tmp
+    
     elif flags.learning_rate_decay_type == 'polynomial':
         return tf.train.polynomial_decay(flags.learning_rate,
                                          global_step,
@@ -205,6 +208,7 @@ def get_init_fn(flags):
     if flags.checkpoint_exclude_scopes:
         exclusions = [scope.strip()
                       for scope in flags.checkpoint_exclude_scopes.split(',')]
+
 
     # TODO(sguada) variables.filter_variables()
     variables_to_restore = []

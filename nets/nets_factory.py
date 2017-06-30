@@ -28,6 +28,7 @@ from nets import vgg
 from nets import ssd_vgg_300
 from nets import ssd_vgg_512
 from nets import ssd_vgg_300_subpixel
+from nets import ssd_vgg_300_subpixel_pool
 
 slim = tf.contrib.slim
 
@@ -51,7 +52,8 @@ arg_scopes_map = {'vgg_a': vgg.vgg_arg_scope,
 
 networks_obj = {'ssd_300_vgg': ssd_vgg_300.SSDNet,
                 'ssd_512_vgg': ssd_vgg_512.SSDNet,
-                'ssd_300_vgg_subpixel': ssd_vgg_300_subpixel.SSDSubpixelNet
+                'ssd_300_vgg_subpixel': ssd_vgg_300_subpixel.SSDSubpixelNet,
+                'ssd_300_vgg_subpixel_pool': ssd_vgg_300_subpixel_pool.SSDSubpixelPoolNet
                 }
 
 

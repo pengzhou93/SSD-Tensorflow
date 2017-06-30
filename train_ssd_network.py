@@ -26,8 +26,8 @@ import tf_utils
 
 slim = tf.contrib.slim
 
-DATA_FORMAT = 'NCHW'
-
+DATA_FORMAT = 'NHWC'
+# DATA_FORMAT = 'NCHW'
 # =========================================================================== #
 # SSD Network flags.
 # =========================================================================== #
@@ -42,8 +42,9 @@ tf.app.flags.DEFINE_float(
 # General Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'train_dir', './model',
+    'train_dir', './model/ssd/20170630-101121',
     'Directory where checkpoints and event logs are written to.')
+tf.app.flags.DEFINE_bool('resume', True, "Resume training from train_dir")
 tf.app.flags.DEFINE_integer('num_clones', 1,
                             'Number of model clones to deploy.')
 tf.app.flags.DEFINE_boolean('clone_on_cpu', False,
@@ -71,7 +72,7 @@ tf.app.flags.DEFINE_float(
 # Optimization Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_float(
-    'weight_decay', 0.00004, 'The weight decay on the model weights.')
+    'weight_decay', 0.0005, 'The weight decay on the model weights.')
 tf.app.flags.DEFINE_string(
     'optimizer', 'sgd',
     'The name of the optimizer, one of "adadelta", "adagrad", "adam",'
@@ -112,7 +113,7 @@ tf.app.flags.DEFINE_string(
     'fixed',
     'Specifies how the learning rate is decayed. One of "fixed", "exponential",'
     ' or "polynomial"')
-tf.app.flags.DEFINE_float('learning_rate', 0.00004, 'Initial learning rate.')
+tf.app.flags.DEFINE_float('learning_rate', 0.00001, 'Initial learning rate.')
 tf.app.flags.DEFINE_float(
     'end_learning_rate', 0.000001,
     'The minimal end learning rate used by a polynomial decay learning rate.')
@@ -160,7 +161,8 @@ tf.app.flags.DEFINE_integer('max_number_of_steps', None,
 # Fine-Tuning Flags.
 # =========================================================================== #
 tf.app.flags.DEFINE_string(
-    'checkpoint_path', './model/20170601-171612',
+    # 'checkpoint_path', './ssd_model/tf/ssd-300-vgg-voc0712-coco/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt/VGG_VOC0712_SSD_300x300_ft_iter_120000.ckpt',
+    'checkpoint_path', './ssd_model/caffe/SSD_300x300_train_by_me/convert_to_tf/VGG_VOC0712_SSD_300x300_iter_120000.ckpt',
     'The path to a checkpoint from which to fine-tune.')
 tf.app.flags.DEFINE_string(
     'checkpoint_model_scope', None,
@@ -189,8 +191,9 @@ def main(_):
 
     tf.logging.set_verbosity(tf.logging.DEBUG)
 
-    subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')    
-    FLAGS.train_dir = os.path.join(FLAGS.train_dir, subdir)
+    if not FLAGS.resume:
+        subdir = datetime.strftime(datetime.now(), '%Y%m%d-%H%M%S')    
+        FLAGS.train_dir = os.path.join(FLAGS.train_dir, subdir)
 
     with tf.Graph().as_default():
         # Config model_deploy. Keep TF Slim Models structure.
@@ -373,8 +376,14 @@ def main(_):
         gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=FLAGS.gpu_memory_fraction)
         config = tf.ConfigProto(log_device_placement=False,
                                 gpu_options=gpu_options)
+
+        variables_to_restore = slim.get_variables_to_restore()
         saver = tf.train.Saver(max_to_keep=2,
+                               var_list = variables_to_restore,
                                pad_step_number=False)
+        
+        # saver = tf.train.Saver(max_to_keep=2,
+        #                        pad_step_number=False)
         slim.learning.train(
             train_tensor,
             logdir=FLAGS.train_dir,
